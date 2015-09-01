@@ -1,0 +1,14 @@
+35,596 +  104,507
+35596 +  104507
+install.packages( "RGoogleDocs")
+install.packages(rDrop)
+install.packages("rDrop")
+install.packages("rdrop2")
+pnorm(12.7,3.3,F)
+pnorm(10,12.7,3.3,F)
+pnorm(10,12.7,3.3,T)
+pnorm(12.7,10,3.3,T)
+pnorm(12.7,10,3.3,F)
+setwd( "Documents/R/WorldBankWDI/")
+WDI <- read.csv( "Data/WDI_Data.csv")
+str(WDI)

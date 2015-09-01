@@ -1,0 +1,360 @@
+---
+title: "Predict Number of Procedures To Start Up"
+author: 'Dileesh Venugopal, Shashank Hosahally & Shirley Verghese'
+output:
+  pdf_document:
+    latex_engine: lualatex
+    number_sections: yes
+    toc: yes
+  html_document:
+    number_sections: yes
+    toc: yes
+---
+
+
+```{r setup, echo=FALSE , include=FALSE}
+# Setting up the R Markdown Report
+# echo & include is set to false because I do not want this on the report
+# enabling cache so we don't have to run the code everytime
+knitr::opts_chunk$set(cache=TRUE, out.width='450px' , dpi=200 )  
+# width of the report & to prevent Scientific notations for large numbers
+options(width=80 , scipen=10000)
+```
+
+```{r librariesUsed, include=FALSE}
+# Grammar of Graphics Plotting Library
+library(ggplot2)
+# To use 'melt'
+library(reshape2)
+# to enable commas in graphs
+library(scales)
+# to get the month number from date variable
+library(lubridate)
+# to calculate Kurtosis
+library(e1071)
+# to be able to plot in grids
+library(grid)
+# to be able to plot in grids
+library(gridExtra)
+#library to split the data
+library(caTools)
+```
+
+```{r standardErrorFunctionDeclared, echo=FALSE}
+# Functions used in this Project
+# Function to calculate the Standard Error
+# x: the vector of numerical values
+# returns the standard error of the vector
+standardError <- function( x ) {
+  sd( x )/sqrt( length( x ) )
+}
+
+```
+
+
+```{r importingData, echo=FALSE}
+# importing the data
+WDI <- read.csv( "Data/WDI_Data.csv" , stringsAsFactors = FALSE )
+
+```
+
+
+```{r gettingColumnsFromData, echo=FALSE}
+NoOfProceduresToStartUp <- subset( WDI , WDI$Indicator.Code == 'IC.REG.PROC' )
+NoOfProceduresToStartUp$Country.Name <- NULL
+NoOfProceduresToStartUp$Indicator.Name <- NULL
+NoOfProceduresToStartUp$Indicator.Code <- NULL
+NoOfProceduresToStartUp <- melt( NoOfProceduresToStartUp , id.vars = "Country.Code" )
+colnames( NoOfProceduresToStartUp )[2:3] <- c( "Year" , "NoOfProceduresToStartUp" )
+
+
+EaseOfDoingBusinessIndex <- subset( WDI , WDI$Indicator.Code == 'IC.BUS.EASE.XQ' )
+EaseOfDoingBusinessIndex$Country.Name <- NULL
+EaseOfDoingBusinessIndex$Indicator.Name <- NULL
+EaseOfDoingBusinessIndex$Indicator.Code <- NULL
+EaseOfDoingBusinessIndex <- melt( EaseOfDoingBusinessIndex , id.vars = "Country.Code" )
+colnames( EaseOfDoingBusinessIndex )[2:3] <- c( "Year" , "EaseOfDoingBusinessIndex" )
+
+
+StrengthLegalRights <- subset( WDI , WDI$Indicator.Code == 'IC.LGL.CRED.XQ' )
+StrengthLegalRights$Country.Name <- NULL
+StrengthLegalRights$Indicator.Name <- NULL
+StrengthLegalRights$Indicator.Code <- NULL
+StrengthLegalRights <- melt( StrengthLegalRights , id.vars = "Country.Code" )
+colnames( StrengthLegalRights )[2:3] <- c( "Year" , "StrengthLegalRights" )
+
+TimeRequiredToGetElectricityDays <- subset( WDI , WDI$Indicator.Code == 'IC.ELC.TIME' )
+TimeRequiredToGetElectricityDays$Country.Name <- NULL
+TimeRequiredToGetElectricityDays$Indicator.Name <- NULL
+TimeRequiredToGetElectricityDays$Indicator.Code <- NULL
+TimeRequiredToGetElectricityDays <- melt( TimeRequiredToGetElectricityDays , id.vars = "Country.Code" )
+colnames( TimeRequiredToGetElectricityDays )[2:3] <- c( "Year" , "TimeRequiredToGetElectricityDays" )
+
+
+NumberOfProceduresToEnforceContract <- subset( WDI , WDI$Indicator.Code == 'IC.LGL.PROC' )
+NumberOfProceduresToEnforceContract$Country.Name <- NULL
+NumberOfProceduresToEnforceContract$Indicator.Name <- NULL
+NumberOfProceduresToEnforceContract$Indicator.Code <- NULL
+NumberOfProceduresToEnforceContract <- melt( NumberOfProceduresToEnforceContract , id.vars = "Country.Code" )
+colnames( NumberOfProceduresToEnforceContract )[2:3] <- c( "Year" , "NumberOfProceduresToEnforceContract" )
+
+
+TimeRequiredToStartBusinessInDays <- subset( WDI , WDI$Indicator.Code == 'IC.REG.DURS' )
+TimeRequiredToStartBusinessInDays$Country.Name <- NULL
+TimeRequiredToStartBusinessInDays$Indicator.Name <- NULL
+TimeRequiredToStartBusinessInDays$Indicator.Code <- NULL
+TimeRequiredToStartBusinessInDays <- melt( TimeRequiredToStartBusinessInDays , id.vars = "Country.Code" )
+colnames( TimeRequiredToStartBusinessInDays )[2:3] <- c( "Year" , "TimeRequiredToStartBusinessInDays" )
+
+TimeToPrepareAndPayTaxesHours <- subset( WDI , WDI$Indicator.Code == 'IC.TAX.DURS' )
+TimeToPrepareAndPayTaxesHours$Country.Name <- NULL
+TimeToPrepareAndPayTaxesHours$Indicator.Name <- NULL
+TimeToPrepareAndPayTaxesHours$Indicator.Code <- NULL
+TimeToPrepareAndPayTaxesHours <- melt( TimeToPrepareAndPayTaxesHours , id.vars = "Country.Code" )
+colnames( TimeToPrepareAndPayTaxesHours )[2:3] <- c( "Year" , "TimeToPrepareAndPayTaxesHours" )
+
+ProfitTax <- subset( WDI , WDI$Indicator.Code == 'IC.TAX.PRFT.CP.ZS' )
+ProfitTax$Country.Name <- NULL
+ProfitTax$Indicator.Name <- NULL
+ProfitTax$Indicator.Code <- NULL
+ProfitTax <- melt( ProfitTax , id.vars = "Country.Code" )
+colnames( ProfitTax )[2:3] <- c( "Year" , "ProfitTax" )
+
+TotalTaxRate <- subset( WDI , WDI$Indicator.Code == 'IC.TAX.TOTL.CP.ZS' )
+TotalTaxRate$Country.Name <- NULL
+TotalTaxRate$Indicator.Name <- NULL
+TotalTaxRate$Indicator.Code <- NULL
+TotalTaxRate <- melt( TotalTaxRate , id.vars = "Country.Code" )
+colnames( TotalTaxRate )[2:3] <- c( "Year" , "TotalTaxRate" )
+
+
+
+
+
+StartUpBusinessFactorsData <- 
+  cbind( EaseOfDoingBusinessIndex           ,
+         NoOfProceduresToStartUp    ,         NumberOfProceduresToEnforceContract,
+         ProfitTax                   ,        StrengthLegalRights                ,
+         TimeRequiredToGetElectricityDays ,   TimeRequiredToStartBusinessInDays  ,
+         TimeToPrepareAndPayTaxesHours     ,  TotalTaxRate                       )
+
+
+
+StartUpBusinessFactorsData <- StartUpBusinessFactorsData[,c(1,2,3,6,9,12,15,18,21,24,27)]
+
+rm( EaseOfDoingBusinessIndex , NoOfProceduresToStartUp , NumberOfProceduresToEnforceContract , 
+ProfitTax, StrengthLegalRights , TimeRequiredToGetElectricityDays , 
+TimeRequiredToStartBusinessInDays , TimeToPrepareAndPayTaxesHours , TotalTaxRate, WDI)
+
+StartUpBusinessFactorsData <- StartUpBusinessFactorsData[complete.cases(StartUpBusinessFactorsData),]
+
+
+StartUpBusinessFactorsData$Year <- as.integer( 
+  substr(StartUpBusinessFactorsData$Year,start = 2 ,stop = nchar( as.character( StartUpBusinessFactorsData$Year )  ) ) )
+
+
+```
+
+
+```{r countriesData, echo=FALSE}
+countries <- read.csv( "Data/WDI_Country.csv" , fileEncoding="latin1")
+
+countries<- countries[ , c(1,2,8,9,22)]
+
+
+StartUpCountryData <- merge( StartUpBusinessFactorsData , countries , by="Country.Code")
+
+```
+
+
+\pagebreak
+
+# Executive Summary
+A startup company is an entrepreneurial venture or a new business in the form of a company a partnership or temporary organization designed to search for a repeatable and scalable business model.
+ 
+In every country, we found the number of procedure officially required for a formal establishment of startup considerably varies. These procedures include obtaining all necessary licenses and permits and completing any required notifications, verifications or inscriptions for the company and employees with relevant authorities
+ 
+A procedure is defined as any interaction of the company founders with external parties (for example, government agencies, lawyers, auditors or notaries). Interactions between company founders or company officers and employees are not counted as procedures. Procedures that must be completed in the same building but in different offices or at different counters are counted separately.
+ 
+This is an effort to analyze the below factors that influence the number of procedures that would be required in the respective country.
+
+
+\pagebreak
+
+# Summary Statistics & Exploration (Stage 1)
+## Introduction
+The Data was retrieved from World Bank Data. The dataset has more than 300 thousand rows of data and we needed to clean the data to arrive at this dataset to predict the No of Procedures.
+
+The link to the dataset is: http://data.worldbank.org/data-catalog/world-development-indicators?cid=GPD_WDI
+
+
+## Summary on All Data
+Structure and summary statistics on the entire data.
+```{r summaryOnAll, echo=FALSE}
+str(StartUpCountryData)
+summary(StartUpCountryData)
+```
+
+## Distribution of Number of Procedures to StartUp
+```{r NoOfProcsToStartHist, echo=FALSE}
+ggplot( StartUpCountryData, aes( x = NoOfProceduresToStartUp ) ) +
+  geom_histogram( binwidth=.4) + 
+  # Vertical line indicating the mean value
+  geom_vline( aes( xintercept = mean( NoOfProceduresToStartUp ) ), color="red" ) +
+  scale_y_continuous( "Frequency of Occurance" ) +
+  scale_x_continuous( "No of Procedures To Start Up" )
+```
+
+
+## Boxplot of Number of Procedures based on Country Region
+```{r NoOfProcsToStartRegionwise, echo=FALSE}
+ggplot(data=StartUpCountryData, 
+       aes(x=Region, y=NoOfProceduresToStartUp, fill=Region) ) + 
+  geom_boxplot(outlier.shape = 15, outlier.size = 4) +
+  # to show how the individual store sizes are distributed
+  geom_jitter() +
+  scale_y_continuous( name="No of Procedures To Start Up" ) + 
+  scale_fill_brewer( name = "Region" , palette = "Dark2") +
+  theme( axis.text.x= element_blank() )
+```
+
+## Boxplot of Number of Procedures based on Country's Income Group
+```{r NoOfProcsToStartRegionwise1, echo=FALSE}
+ggplot(data=StartUpCountryData, 
+       aes(x=Income.Group, y=NoOfProceduresToStartUp, fill=Income.Group) ) + 
+  geom_boxplot(outlier.shape = 15, outlier.size = 4) +
+  # to show how the individual store sizes are distributed
+  geom_jitter() +
+  scale_y_continuous( name="No of Procedures To Start Up" ) + 
+  scale_fill_brewer( name = "Region" , palette = "Dark2") +
+  theme( axis.text.x = element_blank() )
+```
+
+Salient Features:
+
+* Graphically, it appears High Income OECD Countries have lesser No of Procedures
+
+# Formal Statistical Inferences (Stage 2)
+## On Average, Do High Income OECD Countries Have Lesser Procedures to StartUp Business
+
+### The Hypotheses
+
+* <B>Null Hypothesis (H~0~)</B> : On average, there is no difference in between the Number of Procedures to start up a business in any region
+* <B>Alternate Hypothesis (H~A~)</B>: On average, High Income OECD Countries have lesser Number of Procedures (one-sided test)
+
+Mathematically, the hypothese are expressed below:
+
+* H~0~: μ~diff~ = 0
+* H~A~: μ~diff~ > 0
+
+### The Data
+We need to separate the datasets
+
+```{r hypDataSubset}
+# Creating the datasets for Holiday and NotHoliday
+Hyp_NotOECD <- subset( StartUpCountryData , Income.Group != 'High income: OECD' )
+Hyp_OECD <- subset( StartUpCountryData , Income.Group == 'High income: OECD' )
+```
+
+### Central Limit Theorm: Checking the Conditions for Hypothesis Testing for Paired Data
+The conditions for hypothesis testing:
+
+* <B>Independence:</B> Sampled observations must be independent. Random sample must be collected and if it is without replacement then the sample size must be less than 10% of the Population
+* <B>Sample Size / Skew: </B> The no of elements must be more than 30.
+
+We select a size of <code>40</code> which is more than than 10% of the data, therefore, we will sample with replacement
+
+```{r samplingHyp, echo=FALSE}
+# Number of sample elements to collect from population 
+# should be <10% of holiday Week Population
+ndiff <- 40
+set.seed(414)
+NotOECD_Sample <- sample( Hyp_NotOECD$NoOfProceduresToStartUp , ndiff , replace = TRUE )
+OECD_Sample <- sample( Hyp_OECD$NoOfProceduresToStartUp , ndiff , replace = TRUE)
+```
+
+```{r visualizingTheSamplesCollected, echo=FALSE}
+# combining both the sample into one x-Axis Variable
+xVar <- c(NotOECD_Sample , OECD_Sample )
+# Creating the color Variable
+colorVar <- as.factor(c(rep(1, ndiff), rep(2, ndiff ) ) )
+# creating the dataframe
+sampleDensityDf <- data.frame( xVar ,  colorVar )
+# the density plot showing the 
+# Not Holiday and Holiday values of No of Procedures to STart Up
+plottingDensity <- ggplot( sampleDensityDf , aes(x = xVar, fill = colorVar) ) + 
+  geom_density( alpha = .2 ) +
+  scale_x_continuous( "No of Procedures" ) +
+  scale_fill_discrete( 
+    name = "Sample" , labels=c( "Not High Income OECD Country", "High Income OECD Country" ) ) +
+  scale_y_continuous( "Density" ) +
+  theme( legend.position = "bottom" )
+# box plot to show the Density Distribution
+boxPlotDensity <- ggplot( sampleDensityDf , aes( colorVar , xVar ) ) + 
+  geom_boxplot( aes( fill = colorVar ) ) + 
+  scale_y_continuous( "No of Procedures to StartUp" ) +
+  scale_fill_discrete( 
+    name = "Sample" , labels=c( "Not High Income OECD Country", "High Income OECD Country" ) ) +
+  scale_x_discrete( "Sample" , labels=c( "Not High Income OECD Country", "High Income OECD Country" )  ) +
+  theme( legend.position = "bottom" )
+# arranging the plots next to each other
+grid.arrange( plottingDensity , boxPlotDensity , nrow = 1 )
+# removing plots from memory
+rm( xVar , colorVar , sampleDensityDf , plottingDensity , 
+    boxPlotDensity, Hyp_Holiday , Hyp_NotHoliday)
+```
+
+### Calculating the Test Statistic
+```{r calculTestStatistic}
+# Calculating the Difference
+Diff = OECD_Sample - NotOECD_Sample
+# Calculating the Test Statistic
+xBar <- mean(Diff)
+# Calculating the Test Statistic
+zScore <- xBar / standardError(Diff)
+# Calculating p-value
+# pnorm() because we are doing a one-sided test - less than than
+pValue <- pnorm( zScore ) 
+```
+
+```{r printPValue}
+xBar
+zScore
+pValue
+```
+
+### Decision: Null Hypothesis (H~0~) is Rejected
+The **Null Hypothesis (H~0~)** is rejected because the <code>pValue</code> is less than the significance value of <code>0.05</code>.
+
+This imples that the Alternate Hypothesis (H~A~) is NOT rejected and the no of procedures to start a business in High Income OECD Countries is lesser than countries from other regions
+
+### Real World Application
+This confirms with reality where it is easy to start business quickly in countries that belong to the High income OECD Countries.
+
+
+\pagebreak
+
+
+# Multiple Regression - Predicting The Number of Procedures
+
+```{r predictorNoOfProcedures}
+modelNoOfProcedures <- lm( 
+  NoOfProceduresToStartUp ~ . -Country.Code -Short.Name , 
+  data = StartUpCountryData ) 
+```
+
+The model built has an R^2^=```r summary(modelNoOfProcedures)$r.squared```.
+
+The following factors are correlated the number of procedures to start a business:
+
+* Time Required To Start Business In Days
+* Total Tax Rate
+* Strength of Legal Rights
+* Income Group of the Country
+* Strength of Legal Rights
+
+We can predict the No of days using the predictor model.
+
+
+
+
